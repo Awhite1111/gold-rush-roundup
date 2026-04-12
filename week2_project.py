@@ -1,0 +1,276 @@
+# ============================================================
+# GOLD RUSH ROUNDUP - Week 2
+# Builds on Week 1. Adds:
+#   - Gold coins scattered across the maze
+#   - Score counter when coins are collected
+#   - One outlaw enemy that moves and chases the player
+#   - Lose a life when the outlaw catches you
+# ============================================================
+
+import pygame
+import sys
+import random
+
+# --- Constants ---
+TILE = 40
+COLS = 19
+ROWS = 15
+WIDTH  = COLS * TILE
+HEIGHT = ROWS * TILE
+FPS = 60
+
+BLACK       = (0,   0,   0)
+WHITE       = (255, 255, 255)
+BROWN       = (139, 90,  43)
+TAN         = (210, 180, 140)
+YELLOW      = (255, 215,   0)
+GOLD        = (255, 185,   0)
+RED         = (200,  30,  30)
+SKY_BLUE    = (135, 206, 235)
+DARK_RED    = (139,   0,   0)
+
+MAZE = [
+    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+    [1,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,1],
+    [1,0,1,1,0,1,1,1,0,1,0,1,1,1,0,1,1,0,1],
+    [1,0,1,1,0,1,1,1,0,1,0,1,1,1,0,1,1,0,1],
+    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+    [1,0,1,1,0,1,0,1,1,1,1,1,0,1,0,1,1,0,1],
+    [1,0,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,1],
+    [1,1,1,1,0,1,1,1,0,0,0,1,1,1,0,1,1,1,1],
+    [1,0,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,1],
+    [1,0,1,1,0,1,0,1,1,1,1,1,0,1,0,1,1,0,1],
+    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+    [1,0,1,1,0,1,1,1,0,1,0,1,1,1,0,1,1,0,1],
+    [1,0,1,1,0,1,1,1,0,1,0,1,1,1,0,1,1,0,1],
+    [1,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,1],
+    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+]
+
+
+# ── helpers ──────────────────────────────────────────────────
+
+def is_wall_tile(col, row):
+    if row < 0 or row >= ROWS or col < 0 or col >= COLS:
+        return True
+    return MAZE[row][col] == 1
+
+
+def is_wall_pixel(px, py):
+    margin = 4
+    corners = [
+        (px + margin,        py + margin),
+        (px + TILE - margin, py + margin),
+        (px + margin,        py + TILE - margin),
+        (px + TILE - margin, py + TILE - margin),
+    ]
+    for cx, cy in corners:
+        if is_wall_tile(cx // TILE, cy // TILE):
+            return True
+    return False
+
+
+def tile_center(col, row):
+    return col * TILE + TILE // 2, row * TILE + TILE // 2
+
+
+# ── drawing ───────────────────────────────────────────────────
+
+def draw_maze(surface):
+    for row in range(ROWS):
+        for col in range(COLS):
+            x, y = col * TILE, row * TILE
+            if MAZE[row][col] == 1:
+                pygame.draw.rect(surface, BROWN, (x, y, TILE, TILE))
+                pygame.draw.rect(surface, BLACK, (x, y, TILE, TILE), 2)
+            else:
+                pygame.draw.rect(surface, TAN, (x, y, TILE, TILE))
+
+
+def draw_cowboy(surface, x, y):
+    cx = x + TILE // 2
+    cy = y + TILE // 2
+    pygame.draw.rect(surface, BLACK,          (cx-14, cy-16, 28,  5))
+    pygame.draw.rect(surface, BLACK,          (cx- 9, cy-28, 18, 14))
+    pygame.draw.circle(surface, (255,220,177),(cx,    cy- 6,  9))
+    pygame.draw.rect(surface, YELLOW,         (cx- 8, cy+ 3, 16, 14))
+    pygame.draw.rect(surface, BLACK,          (cx- 8, cy+17,  7, 10))
+    pygame.draw.rect(surface, BLACK,          (cx+ 1, cy+17,  7, 10))
+
+
+def draw_outlaw(surface, x, y):
+    cx = x + TILE // 2
+    cy = y + TILE // 2
+    # Black hat
+    pygame.draw.rect(surface, BLACK, (cx-14, cy-16, 28,  5))
+    pygame.draw.rect(surface, BLACK, (cx- 9, cy-28, 18, 14))
+    # Head
+    pygame.draw.circle(surface, (200, 150, 100), (cx, cy-6), 9)
+    # Bandana over face
+    pygame.draw.rect(surface, RED, (cx-9, cy-8, 18, 7))
+    # Dark body
+    pygame.draw.rect(surface, DARK_RED, (cx-8, cy+3, 16, 14))
+    pygame.draw.rect(surface, BLACK, (cx-8, cy+17, 7, 10))
+    pygame.draw.rect(surface, BLACK, (cx+1, cy+17, 7, 10))
+
+
+def draw_coin(surface, cx, cy):
+    pygame.draw.circle(surface, GOLD,  (cx, cy), 7)
+    pygame.draw.circle(surface, YELLOW,(cx, cy), 5)
+
+
+# ── coin setup ────────────────────────────────────────────────
+
+def make_coins():
+    coins = []
+    for row in range(ROWS):
+        for col in range(COLS):
+            if MAZE[row][col] == 0:
+                coins.append([col * TILE + TILE//2, row * TILE + TILE//2, True])
+    return coins   # each entry: [cx, cy, active]
+
+
+# ── outlaw AI ─────────────────────────────────────────────────
+
+class Outlaw:
+    def __init__(self, col, row):
+        self.x = float(col * TILE)
+        self.y = float(row * TILE)
+        self.speed = 1.5
+        self.dir = random.choice([(1,0),(-1,0),(0,1),(0,-1)])
+        self.move_timer = 0
+
+    def update(self, player_x, player_y):
+        """Simple chase: every 30 frames pick direction toward player."""
+        self.move_timer += 1
+        if self.move_timer >= 30:
+            self.move_timer = 0
+            dx = player_x - self.x
+            dy = player_y - self.y
+            if abs(dx) > abs(dy):
+                self.dir = (1, 0) if dx > 0 else (-1, 0)
+            else:
+                self.dir = (0, 1) if dy > 0 else (0, -1)
+
+        nx = self.x + self.dir[0] * self.speed
+        ny = self.y + self.dir[1] * self.speed
+
+        if not is_wall_pixel(int(nx), int(self.y)):
+            self.x = nx
+        else:
+            self.dir = random.choice([(1,0),(-1,0),(0,1),(0,-1)])
+
+        if not is_wall_pixel(int(self.x), int(ny)):
+            self.y = ny
+        else:
+            self.dir = random.choice([(1,0),(-1,0),(0,1),(0,-1)])
+
+    def rect(self):
+        return pygame.Rect(int(self.x)+4, int(self.y)+4, TILE-8, TILE-8)
+
+
+# ── main ──────────────────────────────────────────────────────
+
+def show_message(screen, font, text, color=BLACK):
+    screen.fill(TAN)
+    msg = font.render(text, True, color)
+    screen.blit(msg, (WIDTH//2 - msg.get_width()//2, HEIGHT//2 - msg.get_height()//2))
+    pygame.display.flip()
+    pygame.time.wait(2000)
+
+
+def main():
+    pygame.init()
+    screen = pygame.display.set_mode((WIDTH, HEIGHT))
+    pygame.display.set_caption("Gold Rush Roundup - Week 2")
+    clock = pygame.time.Clock()
+    font_big  = pygame.font.SysFont("Arial", 28, bold=True)
+    font_hud  = pygame.font.SysFont("Arial", 18)
+
+    # Game state
+    player_x  = 1 * TILE
+    player_y  = 1 * TILE
+    speed     = 3
+    score     = 0
+    lives     = 3
+    coins     = make_coins()
+    outlaw    = Outlaw(17, 13)   # starts bottom-right
+    invincible_timer = 0         # brief invincibility after being caught
+
+    running = True
+    while running:
+        clock.tick(FPS)
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                running = False
+
+        # --- Player movement ---
+        keys = pygame.key.get_pressed()
+        nx, ny = player_x, player_y
+        if keys[pygame.K_LEFT]:  nx -= speed
+        if keys[pygame.K_RIGHT]: nx += speed
+        if keys[pygame.K_UP]:    ny -= speed
+        if keys[pygame.K_DOWN]:  ny += speed
+        if not is_wall_pixel(nx, player_y): player_x = nx
+        if not is_wall_pixel(player_x, ny): player_y = ny
+
+        # --- Coin collection ---
+        p_cx = player_x + TILE // 2
+        p_cy = player_y + TILE // 2
+        for coin in coins:
+            if coin[2] and abs(p_cx - coin[0]) < 14 and abs(p_cy - coin[1]) < 14:
+                coin[2] = False
+                score += 10
+
+        # --- Outlaw update ---
+        outlaw.update(player_x, player_y)
+
+        # --- Collision with outlaw ---
+        if invincible_timer > 0:
+            invincible_timer -= 1
+        else:
+            p_rect = pygame.Rect(player_x+4, player_y+4, TILE-8, TILE-8)
+            if p_rect.colliderect(outlaw.rect()):
+                lives -= 1
+                invincible_timer = 90   # 1.5 sec grace period
+                if lives <= 0:
+                    show_message(screen, font_big, "GAME OVER - Press any key", RED)
+                    running = False
+                else:
+                    show_message(screen, font_big, f"Caught! {lives} lives left", DARK_RED)
+                    player_x, player_y = 1*TILE, 1*TILE
+
+        # --- Win check ---
+        if all(not c[2] for c in coins):
+            show_message(screen, font_big, f"YOU WIN!  Score: {score}", (0,120,0))
+            running = False
+
+        # --- Draw ---
+        screen.fill(SKY_BLUE)
+        draw_maze(screen)
+
+        for coin in coins:
+            if coin[2]:
+                draw_coin(screen, coin[0], coin[1])
+
+        draw_outlaw(screen, int(outlaw.x), int(outlaw.y))
+
+        # Flash player when invincible
+        if invincible_timer == 0 or (invincible_timer // 6) % 2 == 0:
+            draw_cowboy(screen, player_x, player_y)
+
+        # HUD
+        hud = font_hud.render(f"Score: {score}   Lives: {lives}   Coins left: {sum(1 for c in coins if c[2])}", True, BLACK)
+        screen.blit(hud, (8, 4))
+
+        pygame.display.flip()
+
+    pygame.quit()
+    sys.exit()
+
+
+if __name__ == "__main__":
+    main()
