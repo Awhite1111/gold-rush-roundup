@@ -1,6 +1,6 @@
 # Gold Rush Roundup
 
-**Demo Video:** 
+**Demo Video:** [will add after completion of project]
 **Repository:** https://github.com/Awhite1111/gold-rush-roundup
 
 ## Description
