@@ -29,7 +29,7 @@ This project is relevant to digital arts and media because it combines interacti
 
 ## Features
 
-- - **Procedurally generated sound effects** — All audio is synthesized at runtime using numpy waveforms (no external audio files). Includes distinct sounds for coin collection, badge pickup, outlaw elimination, taking a hit, level clear, and game over.
+- **Procedurally generated sound effects** — All audio is synthesized at runtime using numpy waveforms (no external audio files). Includes distinct sounds for coin collection, badge pickup, outlaw elimination, taking a hit, level clear, and game over.
 - **Tile-based maze** — A grid-based frontier town layout rendered with Pygame's drawing tools, with wall collision detection using corner-based pixel checking.
 - **Gold coin collection** — Coins fill every open tile. Collecting all coins on a level advances you to the next.
 - **Outlaw enemies** — Enemy outlaws chase the player using directional AI that targets the player's position every few frames. Level 2 adds a third outlaw and increases their speed.
