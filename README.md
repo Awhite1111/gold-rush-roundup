@@ -11,7 +11,7 @@ This project is relevant to digital arts and media because it combines interacti
 
 ## Files
 
-- `src/project.py` — The main game source file. Contains all game logic, drawing functions, the Outlaw class, level loop, and the main entry point.
+- `src/project.py` — The main game source file will be stored here. It will contain all game logic, drawing functions, the Outlaw class, level loop, and the main entry point.
 - `requirements.txt` — Lists the one third-party library needed to run the game: `pygame`.
 - `README.md` — This file. Explains the project, design decisions, and future improvements.
 
