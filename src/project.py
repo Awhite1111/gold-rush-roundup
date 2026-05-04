@@ -533,7 +533,7 @@ def main():
     """Main function — initialises Pygame, runs title + levels."""
     pygame.init()
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
-    pygame.display.set_caption("Gold Rush Roundup")
+    pygame.display.set_caption("Gold Rush Roundup 🤠")
     clock    = pygame.time.Clock()
     font_big = pygame.font.SysFont("Arial", 36, bold=True)
     font_hud = pygame.font.SysFont("Arial", 16)
