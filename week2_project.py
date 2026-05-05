@@ -1,4 +1,3 @@
-
 # ============================================================
 # GOLD RUSH ROUNDUP - Week 2
 # Builds on Week 1. Adds:
@@ -93,12 +92,7 @@ def draw_cowboy(surface, x, y):
     cy = y + TILE // 2
     pygame.draw.rect(surface, BLACK,          (cx-14, cy-16, 28,  5))
     pygame.draw.rect(surface, BLACK,          (cx- 9, cy-28, 18, 14))
-    pygame.draw.circle(surface, (255,220,177),(cx, cy - 6), 9)
-    # Eyes
-    pygame.draw.circle(surface, BLACK, (cx - 3, cy - 8), 2)
-    pygame.draw.circle(surface, BLACK, (cx + 3, cy - 8), 2)
-    # Smile
-    pygame.draw.arc(surface, BLACK, pygame.Rect(cx - 4, cy - 5, 8, 5), 3.14, 0, 2)
+    pygame.draw.circle(surface, (255,220,177),(cx,    cy- 6,  9))
     pygame.draw.rect(surface, YELLOW,         (cx- 8, cy+ 3, 16, 14))
     pygame.draw.rect(surface, BLACK,          (cx- 8, cy+17,  7, 10))
     pygame.draw.rect(surface, BLACK,          (cx+ 1, cy+17,  7, 10))
