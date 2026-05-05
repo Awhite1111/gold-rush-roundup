@@ -252,7 +252,7 @@ def draw_cowboy(surface, x, y, powered=False):
     body = BLUE if powered else YELLOW
     pygame.draw.rect(surface,   hat,          (cx-14, cy-16, 28,  5))
     pygame.draw.rect(surface,   hat,          (cx- 9, cy-28, 18, 14))
-    pygame.draw.circle(surface, (255,220,177),(cx,    cy- 6,  9))
+    pygame.draw.circle(surface, (255,220,177),(cx,    cy- 6),  9)
     # Eyes
     pygame.draw.circle(surface, BLACK, (cx - 3, cy - 8), 2)
     pygame.draw.circle(surface, BLACK, (cx + 3, cy - 8), 2)
@@ -273,7 +273,7 @@ def draw_outlaw(surface, x, y, scared=False):
     band = BLUE    if scared else RED
     pygame.draw.rect(surface,   hat,          (cx-14, cy-16, 28,  5))
     pygame.draw.rect(surface,   hat,          (cx- 9, cy-28, 18, 14))
-    pygame.draw.circle(surface, (200,150,100),(cx,    cy- 6,  9))
+    pygame.draw.circle(surface, (200,150,100),(cx,    cy- 6),  9)
     pygame.draw.rect(surface,   band,         (cx- 9, cy- 8, 18,  7))
     pygame.draw.rect(surface,   body,         (cx- 8, cy+ 3, 16, 14))
     pygame.draw.rect(surface,   hat,          (cx- 8, cy+17,  7, 10))
@@ -330,16 +330,24 @@ def make_coins(maze, badge_spots):
 
 class Outlaw:
     def __init__(self, col, row, speed):
-        self.x     = float(col * TILE)
-        self.y     = float(row * TILE)
-        self.speed = speed
-        self.dir   = random.choice([(1,0),(-1,0),(0,1),(0,-1)])
-        self.timer = 0
-        self.alive = True
+        self.x          = float(col * TILE)
+        self.y          = float(row * TILE)
+        self.start_col  = col
+        self.start_row  = row
+        self.speed      = speed
+        self.dir        = random.choice([(1,0),(-1,0),(0,1),(0,-1)])
+        self.timer      = 0
+        self.alive      = True
+        self.respawn_timer = 0
 
     def update(self, px, py, scared, maze):
         """Move the outlaw; chase player normally, flee when scared."""
         if not self.alive:
+            self.respawn_timer -= 1
+            if self.respawn_timer <= 0:
+                self.x = float(self.start_col * TILE)
+                self.y = float(self.start_row * TILE)
+                self.alive = True
             return
         self.timer += 1
         interval = 60 if scared else 25
@@ -483,6 +491,7 @@ def run_level(screen, clock, fonts, sounds, level_index, score, lives):
             if p_rect.colliderect(outlaw.get_rect()):
                 if powered:
                     outlaw.alive = False
+                    outlaw.respawn_timer = 300  # respawn after ~5 seconds
                     score += 200
                     sounds["zap"].play()
                 elif inv_timer == 0:
