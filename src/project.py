@@ -48,7 +48,7 @@ LEVEL_1 = [
     [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
     [1,0,1,1,0,1,0,1,1,1,1,1,0,1,0,1,1,0,1],
     [1,0,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,1],
-    [1,1,1,1,0,1,1,1,0,0,0,1,1,1,0,1,1,1,1],
+    [0,0,1,1,0,1,1,1,0,0,0,1,1,1,0,1,1,0,0],
     [1,0,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,1],
     [1,0,1,1,0,1,0,1,1,1,1,1,0,1,0,1,1,0,1],
     [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
@@ -66,7 +66,7 @@ LEVEL_2 = [
     [1,0,1,1,1,0,1,1,1,0,1,1,1,0,1,1,1,0,1],
     [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
     [1,1,1,0,1,1,1,0,1,1,1,0,1,1,1,0,1,1,1],
-    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
     [1,1,1,0,1,1,1,0,1,1,1,0,1,1,1,0,1,1,1],
     [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
     [1,0,1,1,1,0,1,1,1,0,1,1,1,0,1,1,1,0,1],
@@ -158,17 +158,19 @@ def make_hit_sound():
 
 
 def make_zap_sound():
-    """Zap / electric crackle when eliminating a scared outlaw."""
+    """Western gunshot sound when eliminating a scared outlaw."""
     sample_rate = 44100
-    dur = 0.25
+    dur = 0.3
     n   = int(sample_rate * dur)
     t   = np.linspace(0, dur, n, endpoint=False)
+    # Sharp noise burst for the crack
     noise = np.random.uniform(-1, 1, n)
-    # Modulate with a fast sine to give it a buzzy quality
-    mod  = np.abs(np.sin(2 * np.pi * 80 * t))
-    s    = noise * mod
-    fade = np.linspace(1, 0, n)
-    s    = (s * fade * 0.5 * 32767).astype(np.int16)
+    # Fast attack, slow decay envelope
+    env = np.exp(-t * 18)
+    # Low frequency rumble underneath
+    rumble = np.sin(2 * np.pi * 80 * t) * np.exp(-t * 12)
+    s = (noise * env * 0.7) + (rumble * 0.3)
+    s = (s * 0.6 * 32767).astype(np.int16)
     return pygame.sndarray.make_sound(np.column_stack([s, s]))
 
 
@@ -234,35 +236,54 @@ def is_wall_pixel(px, py, maze):
 
 # ── Drawing helpers ───────────────────────────────────────────
 
-def draw_maze(surface, maze):
+DARK_GREEN  = ( 34,  85,  34)
+LIGHT_GREEN = (144, 188, 144)
+
+def draw_maze(surface, maze, level_index=0):
+    wall_color  = DARK_GREEN  if level_index == 1 else BROWN
+    floor_color = LIGHT_GREEN if level_index == 1 else TAN
     for row in range(ROWS):
         for col in range(COLS):
             x, y = col*TILE, row*TILE + 30
             if maze[row][col] == 1:
-                pygame.draw.rect(surface, BROWN, (x, y, TILE, TILE))
-                pygame.draw.rect(surface, BLACK, (x, y, TILE, TILE), 2)
+                pygame.draw.rect(surface, wall_color,  (x, y, TILE, TILE))
+                pygame.draw.rect(surface, BLACK,       (x, y, TILE, TILE), 2)
             else:
-                pygame.draw.rect(surface, TAN,   (x, y, TILE, TILE))
+                pygame.draw.rect(surface, floor_color, (x, y, TILE, TILE))
 
 
 def draw_cowboy(surface, x, y, powered=False):
     """Draw the player cowboy character."""
     cx, cy = x + TILE//2, y + TILE//2 + 30
-    hat  = BLUE if powered else BLACK
-    body = BLUE if powered else YELLOW
-    pygame.draw.rect(surface,   hat,          (cx-14, cy-16, 28,  5))
-    pygame.draw.rect(surface,   hat,          (cx- 9, cy-28, 18, 14))
+    # Hat brim
+    pygame.draw.rect(surface,   BROWN,        (cx-14, cy-16, 28,  5))
+    pygame.draw.rect(surface,   BLACK,        (cx-14, cy-16, 28,  5), 1)
+    # Hat top
+    pygame.draw.rect(surface,   BROWN,        (cx- 9, cy-28, 18, 14))
+    pygame.draw.rect(surface,   BLACK,        (cx- 9, cy-28, 18, 14), 1)
     pygame.draw.circle(surface, (255,220,177),(cx,    cy- 6),  9)
     # Eyes
     pygame.draw.circle(surface, BLACK, (cx - 3, cy - 8), 2)
     pygame.draw.circle(surface, BLACK, (cx + 3, cy - 8), 2)
     # Smile
     pygame.draw.arc(surface, BLACK, pygame.Rect(cx - 4, cy - 5, 8, 5), 3.14, 0, 2)
-    pygame.draw.rect(surface,   body,         (cx- 8, cy+ 3, 16, 14))
-    pygame.draw.rect(surface,   hat,          (cx- 8, cy+17,  7, 10))
-    pygame.draw.rect(surface,   hat,          (cx+ 1, cy+17,  7, 10))
+    pygame.draw.rect(surface,   YELLOW,       (cx- 8, cy+ 3, 16, 14))
+    # Left boot
+    pygame.draw.rect(surface,   BROWN,        (cx- 8, cy+17,  7, 10))
+    pygame.draw.rect(surface,   BLACK,        (cx- 8, cy+17,  7, 10), 1)
+    # Right boot
+    pygame.draw.rect(surface,   BROWN,        (cx+ 1, cy+17,  7, 10))
+    pygame.draw.rect(surface,   BLACK,        (cx+ 1, cy+17,  7, 10), 1)
     if powered:
-        pygame.draw.circle(surface, YELLOW, (cx+7, cy+6), 5)
+        # Glowing sheriff badge on chest
+        pygame.draw.circle(surface, ORANGE, (cx+6, cy+6), 6)
+        pygame.draw.circle(surface, YELLOW, (cx+6, cy+6), 4)
+        # Black star on badge
+        bx, by2 = cx+6, cy+6
+        pts = [(bx,by2-4),(bx+1,by2-1),(bx+4,by2-1),(bx+2,by2+1),
+               (bx+3,by2+4),(bx,by2+2),(bx-3,by2+4),(bx-2,by2+1),
+               (bx-4,by2-1),(bx-1,by2-1)]
+        pygame.draw.polygon(surface, BLACK, pts)
 
 
 def draw_outlaw(surface, x, y, scared=False):
@@ -274,10 +295,28 @@ def draw_outlaw(surface, x, y, scared=False):
     pygame.draw.rect(surface,   hat,          (cx-14, cy-16, 28,  5))
     pygame.draw.rect(surface,   hat,          (cx- 9, cy-28, 18, 14))
     pygame.draw.circle(surface, (200,150,100),(cx,    cy- 6),  9)
-    pygame.draw.rect(surface,   band,         (cx- 9, cy- 8, 18,  7))
     pygame.draw.rect(surface,   body,         (cx- 8, cy+ 3, 16, 14))
     pygame.draw.rect(surface,   hat,          (cx- 8, cy+17,  7, 10))
     pygame.draw.rect(surface,   hat,          (cx+ 1, cy+17,  7, 10))
+    # Bandana as triangle
+    if not scared:
+        pygame.draw.polygon(surface, RED, [(cx-9, cy-8), (cx+9, cy-8), (cx, cy+1)])
+    else:
+        pygame.draw.polygon(surface, BLUE, [(cx-9, cy-8), (cx+9, cy-8), (cx, cy+1)])
+    if scared:
+        # Scared face - wide eyes and worried mouth
+        pygame.draw.circle(surface, WHITE, (cx - 3, cy - 8), 3)
+        pygame.draw.circle(surface, WHITE, (cx + 3, cy - 8), 3)
+        pygame.draw.circle(surface, BLACK, (cx - 3, cy - 8), 1)
+        pygame.draw.circle(surface, BLACK, (cx + 3, cy - 8), 1)
+        pygame.draw.arc(surface, BLACK, pygame.Rect(cx - 4, cy - 4, 8, 5), 0, 3.14, 2)
+    else:
+        # Angry face - mean eyes and scowl
+        pygame.draw.circle(surface, BLACK, (cx - 3, cy - 8), 2)
+        pygame.draw.circle(surface, BLACK, (cx + 3, cy - 8), 2)
+        pygame.draw.line(surface, BLACK, (cx - 5, cy - 11), (cx - 1, cy - 9), 2)
+        pygame.draw.line(surface, BLACK, (cx + 5, cy - 11), (cx + 1, cy - 9), 2)
+        pygame.draw.arc(surface, BLACK, pygame.Rect(cx - 4, cy - 3, 8, 5), 0, 3.14, 2)
 
 
 def draw_coin(surface, cx, cy):
@@ -288,12 +327,12 @@ def draw_coin(surface, cx, cy):
 def draw_badge(surface, cx, cy):
     """Draw a collectible sheriff's badge."""
     by = cy + 30
-    pygame.draw.circle(surface, SILVER, (cx, by), 10)
-    pygame.draw.circle(surface, GOLD,   (cx, by),  7)
+    pygame.draw.circle(surface, ORANGE, (cx, by), 10)
+    pygame.draw.circle(surface, YELLOW, (cx, by),  7)
     pts = [(cx,by-10),(cx+3,by-3),(cx+10,by-3),(cx+4,by+2),
            (cx+6,by+9),(cx,by+5),(cx-6,by+9),(cx-4,by+2),
            (cx-10,by-3),(cx-3,by-3)]
-    pygame.draw.polygon(surface, SILVER, pts)
+    pygame.draw.polygon(surface, BLACK, pts)
 
 
 def draw_hud(surface, font, score, lives, level, power_timer, coins_left):
@@ -302,7 +341,7 @@ def draw_hud(surface, font, score, lives, level, power_timer, coins_left):
     powered = power_timer > 0
     badge_text = f"  ⚡{power_timer//60+1}s" if powered else ""
     text = (f"Level {level+1}   Score: {score}   "
-            f"Lives: {'★'*lives}{'☆'*(3-lives)}   "
+            f"Lives: {lives}   "
             f"Coins: {coins_left}{badge_text}")
     hud = font.render(text, True, GOLD)
     surface.blit(hud, (8, 6))
@@ -398,6 +437,60 @@ def fade_message(screen, font_big, font_sm, line1, line2, color1=GOLD, bg=(50,30
     _wait_key()
 
 
+def end_screen(screen, font_big, font_sm, title, score, color, bg):
+    """Show game over or win screen with particles on win. Returns True to replay, False to quit."""
+    is_win = color == GOLD
+    particles = []
+    if is_win:
+        for _ in range(80):
+            particles.append({
+                "x": random.randint(0, WIDTH),
+                "y": random.randint(0, HEIGHT),
+                "vx": random.uniform(-3, 3),
+                "vy": random.uniform(-5, -1),
+                "color": random.choice([GOLD, YELLOW, ORANGE, WHITE, RED]),
+                "size": random.randint(3, 8),
+                "life": random.randint(40, 120)
+            })
+
+    clock = pygame.time.Clock()
+    while True:
+        clock.tick(60)
+        screen.fill(bg)
+
+        if is_win:
+            for p in particles:
+                pygame.draw.circle(screen, p["color"], (int(p["x"]), int(p["y"])), p["size"])
+                p["x"] += p["vx"]
+                p["y"] += p["vy"]
+                p["vy"] += 0.1  # gravity
+                p["life"] -= 1
+                if p["life"] <= 0:
+                    p["x"] = random.randint(0, WIDTH)
+                    p["y"] = HEIGHT + 10
+                    p["vx"] = random.uniform(-3, 3)
+                    p["vy"] = random.uniform(-8, -3)
+                    p["color"] = random.choice([GOLD, YELLOW, ORANGE, WHITE, RED])
+                    p["size"] = random.randint(3, 8)
+                    p["life"] = random.randint(40, 120)
+
+        t1 = font_big.render(title, True, color)
+        t2 = font_sm.render(f"Final Score: {score}", True, WHITE)
+        t3 = font_sm.render("Press R to Replay   |   Press Q to Quit", True, TAN)
+        screen.blit(t1, (WIDTH//2 - t1.get_width()//2, HEIGHT//2 - 80))
+        screen.blit(t2, (WIDTH//2 - t2.get_width()//2, HEIGHT//2 - 10))
+        screen.blit(t3, (WIDTH//2 - t3.get_width()//2, HEIGHT//2 + 50))
+        pygame.display.flip()
+        for e in pygame.event.get():
+            if e.type == pygame.QUIT:
+                return False
+            if e.type == pygame.KEYDOWN:
+                if e.key == pygame.K_r:
+                    return True
+                if e.key == pygame.K_q:
+                    return False
+
+
 def _wait_key():
     while True:
         for e in pygame.event.get():
@@ -434,6 +527,7 @@ def run_level(screen, clock, fonts, sounds, level_index, score, lives):
     speed       = 3
     power_timer = 0
     inv_timer   = 0   # brief invincibility after being caught
+    lives       = 3   # reset lives each level
 
     fade_message(screen, font_big, font_hud,
                  f"LEVEL {level_index + 1}",
@@ -458,6 +552,15 @@ def run_level(screen, clock, fonts, sounds, level_index, score, lives):
         if keys[pygame.K_RIGHT]: nx += speed
         if keys[pygame.K_UP]:    ny -= speed
         if keys[pygame.K_DOWN]:  ny += speed
+
+        # --- Screen wrapping left/right (before wall check) ---
+        if nx < 0:
+            player_x = WIDTH - TILE
+            nx = player_x
+        elif nx >= WIDTH - TILE:
+            player_x = 0
+            nx = player_x
+
         if not is_wall_pixel(nx, player_y, maze): player_x = nx
         if not is_wall_pixel(player_x, ny, maze): player_y = ny
 
@@ -497,11 +600,11 @@ def run_level(screen, clock, fonts, sounds, level_index, score, lives):
                 elif inv_timer == 0:
                     lives -= 1
                     inv_timer = 90
-                    player_x, player_y = 1*TILE, 1*TILE
+                    player_x, player_y = 9*TILE, 7*TILE
                     sounds["hit"].play()
                     if lives <= 0:
                         sounds["game_over"].play()
-                        pygame.time.wait(1200)
+                        pygame.time.wait(500)
                         return score, 0, False
 
         # --- Win check ---
@@ -515,7 +618,7 @@ def run_level(screen, clock, fonts, sounds, level_index, score, lives):
         screen.fill(SKY_BLUE)
         draw_hud(screen, font_hud, score, lives, level_index,
                  power_timer, coins_left)
-        draw_maze(screen, maze)
+        draw_maze(screen, maze, level_index)
 
         for item in coins:
             if item["active"]:
@@ -541,43 +644,46 @@ def run_level(screen, clock, fonts, sounds, level_index, score, lives):
 def main():
     """Main function — initialises Pygame, runs title + levels."""
     pygame.init()
-    screen = pygame.display.set_mode((WIDTH, HEIGHT))
-    pygame.display.set_caption("Gold Rush Roundup 🤠")
+    screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.SCALED | pygame.FULLSCREEN)
+    pygame.display.set_caption("Gold Rush Roundup")
     clock    = pygame.time.Clock()
     font_big = pygame.font.SysFont("Arial", 36, bold=True)
     font_hud = pygame.font.SysFont("Arial", 16)
     fonts    = (font_big, font_hud)
     sounds   = init_sounds()
 
-    title_screen(screen, font_big, font_hud)
+    while True:
+        title_screen(screen, font_big, font_hud)
+        score = 0
+        lives = 3
+        game_over = False
 
-    score = 0
-    lives = 3
+        for level_index in range(len(LEVELS)):
+            score, lives, completed = run_level(
+                screen, clock, fonts, sounds, level_index, score, lives)
 
-    for level_index in range(len(LEVELS)):
-        score, lives, completed = run_level(
-            screen, clock, fonts, sounds, level_index, score, lives)
+            if not completed:
+                game_over = True
+                break
 
-        if not completed:
-            fade_message(screen, font_big, font_hud,
-                         "GAME OVER, PARTNER",
-                         f"Final Score: {score}   Press any key...",
-                         RED, (60, 10, 10))
+            if level_index < len(LEVELS) - 1:
+                fade_message(screen, font_big, font_hud,
+                             f"LEVEL {level_index+1} CLEARED!",
+                             f"Score: {score}   Get ready for Level {level_index+2}...",
+                             GOLD, (20, 50, 20))
+
+        if game_over:
+            replay = end_screen(screen, font_big, font_hud,
+                                "GAME OVER, PARTNER!",
+                                score, RED, (60, 10, 10))
+        else:
+            replay = end_screen(screen, font_big, font_hud,
+                                "YOU WIN, PARTNER!",
+                                score, GOLD, (20, 60, 20))
+
+        if not replay:
             pygame.quit()
             sys.exit()
-
-        if level_index < len(LEVELS) - 1:
-            fade_message(screen, font_big, font_hud,
-                         f"LEVEL {level_index+1} CLEARED!",
-                         f"Score: {score}   Get ready for Level {level_index+2}...",
-                         GOLD, (20, 50, 20))
-
-    fade_message(screen, font_big, font_hud,
-                 "YOU WIN, PARTNER! 🤠",
-                 f"All gold collected!  Final Score: {score}   Press any key...",
-                 GOLD, (20, 60, 20))
-    pygame.quit()
-    sys.exit()
 
 
 if __name__ == "__main__":
